@@ -1,0 +1,26 @@
+# .bashrc
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+	. /etc/bashrc
+fi
+
+# User specific environment
+if ! [[ "$PATH" =~ "$HOME/.local/bin:$HOME/bin:" ]]
+then
+    PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+fi
+export PATH
+
+
+# User specific aliases and functions
+for file in $HOME/Desktop/*.desktop
+do
+	desktop-file-install --mode=0755 --dir=$HOME/Desktop $file
+	dbus-launch gio set $file "metadata::trusted" true
+done
+
+# Uncomment the following line if you don't like systemctl's auto-paging feature:
+# export SYSTEMD_PAGER=
+
+# User specific aliases and functions

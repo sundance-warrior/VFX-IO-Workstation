@@ -1,0 +1,37 @@
+
+      - name: check if system is bound to domain
+        shell: > 
+          realm list
+          | grep domain-name
+        register: realm_bound
+        failed_when: realm_bound.rc > 3
+        changed_when: false
+
+
+      - name: Check SDA Disk Size
+        shell: >
+          lsblk -b |
+          grep ^sda |
+          awk '{ print $4 }'
+        register: sdaSize
+        failed_when: sdaSize.stdout|int < 85899000000
+        changed_when: false
+
+      - name: Check "/opt/transfer" Size
+        shell: >
+          df  /opt/transfer --output=size
+          | grep -v blocks
+        register: TransferSize
+#        failed_when: TransferSize.rc == 1 or TransferSize.stdout|int < 890000000
+        failed_when: TransferSize.rc == 1 or TransferSize.stdout|int < 8800000
+        changed_when: false
+
+      - name: Check "/opt/Applications" Size
+        shell: >
+          df  /opt/Applications --output=size
+          | grep -v blocks
+        register: AppSize
+#        failed_when: AppSize.rc == 1 or AppSize.stdout|int < 13300000
+        failed_when: AppSize.rc == 1 or AppSize.stdout|int < 11000000
+        changed_when: false
+

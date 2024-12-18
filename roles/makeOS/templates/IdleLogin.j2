@@ -1,0 +1,85 @@
+#!/bin/bash
+
+. /etc/sysconfig/SessionIdleLimit
+
+ACTION_LINE=$(loginctl | grep -v gdm  | egrep '.*seat0.*yes.*' )
+
+
+TerminateCondition () {
+
+        IdleTime=$1
+        Access=$2
+        SessionID=$3
+	RunningProcStat=$4
+	User=$5
+
+
+        if [ ${IdleTime} -ge ${SessionIdleLimit} -a ${Access} -eq 0 -a ${RunningProcStat} = "S" ]
+        then
+
+                 loginctl terminate-session ${SessionID}
+
+		 logger -p info -t SessionIdleTime "Terminate Session ${SessionID} of user ${User} because the SessionIdleLimit of ${SessionIdleLimit} minutes has been exceeded"
+
+        fi
+
+}
+
+CalcTime () {
+
+        MINUTES=$( echo ${ACTION_LINE} | egrep -o "[0-9]{1,2}min" | sed 's/min//g')
+        HOURS=$( echo ${ACTION_LINE} | egrep -o "[0-9]{1,2}h" | sed 's/h//g')
+        DAYS=$( echo ${ACTION_LINE} | egrep -o "[0-9]{1,2}.day" | sed -r 's/day[s]{0,1}//g')
+        SESSION=$( echo ${ACTION_LINE} | awk '{ print $1 }')
+	USERID=$( echo ${ACTION_LINE} | awk '{ print $2 }')
+	USER=$( echo ${ACTION_LINE} | awk '{ print $3 }')
+
+
+
+                        if [ -z ${MINUTES} ]
+                        then
+                                MINUTES=0
+                        fi
+
+                        if [ ! -z ${DAYS} ]
+                        then
+                                DAY_MINUTES=$(( ${DAYS} * 1440 ))
+                        else
+                                DAY_MINUTES=0
+                        fi
+
+                        if [ ! -z ${HOURS} ]
+                        then
+                                HOURS_MINUTES=$(( ${HOURS} * 60 ))
+                        else
+
+                                HOURS_MINUTES=0
+                        fi
+
+
+                TOTAL_TIME=$(( ${DAY_MINUTES} + $HOURS_MINUTES + $MINUTES ))
+
+                OPEN_FILES=$(lsof -w +D /opt/transfer/ | egrep -v '^COMMAND|^smbd' | wc -l)
+
+		PROC_STAT=$(ps -hU ${USERID} -o s | awk '$1 == "R" { print;exit; }') 
+		PROC_STAT=${PROC_STAT:-S}
+
+                TerminateCondition ${TOTAL_TIME} ${OPEN_FILES} ${SESSION} ${PROC_STAT} ${USER}
+
+}
+
+
+	        if [ ! -z "${ACTION_LINE}" ]
+        	then
+                	CalcTime
+        	else
+                	exit
+        	fi
+
+
+
+#######################################################################################################
+#
+# Author: Volker Krieger ( Accenture )
+#
+#######################################################################################################

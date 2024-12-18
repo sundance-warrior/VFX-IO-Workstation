@@ -1,0 +1,35 @@
+[nss]
+filter_groups = root
+filter_users = root
+
+[pam]
+pam_id_timeout = 7200
+get_domains_timeout = 7200
+
+[sssd]
+domains = mvision.lan
+config_file_version = 2
+reconnection_retries = 3
+services = nss, pam
+
+[domain/mvision.lan]
+ad_update_samba_machine_account_password = True
+ad_domain = mvision.lan
+krb5_realm = MVISION.LAN
+cache_credentials = True
+id_provider = ad
+auth_provider = ad
+chpass_provider = ad
+access_provider = simple
+ldap_schema = ad
+dyndns_update = true
+dyndns_refresh_interval = 433200
+dyndns_update_ptr = true
+dyndns_ttl = 3600
+krb5_store_password_if_offline = True
+default_shell = /bin/bash
+ldap_id_mapping = True
+use_fully_qualified_names = False
+fallback_homedir = /home/%u
+simple_allow_groups = mv_u_admins, mv_u_{{inventory_hostname}}_admins, mv_u_{{inventory_hostname}}_users
+simple_allow_users = s_ad-cyberarkux_ldp

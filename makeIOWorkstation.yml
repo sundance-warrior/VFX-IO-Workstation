@@ -1,0 +1,96 @@
+
+- name: Prerequisite Play
+  hosts: all
+  gather_facts: false
+  tags: preTesting
+
+  tasks:
+
+    - name: Prerequisite Testing
+      import_tasks: IOWorkstation-prerequisite.yml
+
+- name: Prepare OS 
+  hosts: all
+  gather_facts: true
+  tags: prepareOS
+
+  tasks:
+
+    - name: Importing Role For OS Preparation
+      import_role:
+        name: makeOS 
+
+####################################################################################
+#
+#   This has been outsourced as a local AAP project because of the size of the Play
+#
+#
+#- name: Install LeoStream
+#  hosts: all
+#  gather_facts: true
+#  tags: leoStream
+#
+#  tasks:
+#
+#    - name: Importing Role For LeoStream Installation
+#      import_role:
+#        name: LeoStream
+#
+#- name: Install PCOIP 
+#  hosts: all
+#  gather_facts: true
+#  tags: pcoip
+#
+#  tasks:
+#
+#    - name: Importing Role For PCOIP Installation
+#      import_role:
+#        name: pcoip
+#
+#
+#- name: Install Artist Anywhere
+#  hosts: all
+#  gather_facts: false
+#  tags: artist
+#
+#  tasks:
+#
+#    - name: Importing Role For PCOIP Installation
+#      import_role:
+#        name: ArtistAnywhere
+#
+#- name: Install ShotGrid
+#  hosts: all
+#  gather_facts: false
+#  tags: shotgrid
+#
+#  tasks:
+#
+#    - name: Importing Role For ShotGrid Installation
+#      import_role:
+#        name: ShotGrid
+#
+#- name: Install Aspera
+#  hosts: all
+#  gather_facts: false
+#  tags: aspera
+#
+#  tasks:
+#
+#    - name: Importing Role For Aspera Installation
+#      import_role:
+#        name: Aspera
+#
+#- name: Install S3 Explorer
+#  hosts: all
+#  gather_facts: false
+#  tags: s3explorer
+#
+#  tasks:
+#
+#    - name: Importing Role For S3 Explorer Installation
+#      import_role:
+#        name: S3explo
+#
+#
+####################################################################################

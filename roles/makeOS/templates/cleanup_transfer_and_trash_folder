@@ -1,0 +1,7 @@
+#!/bin/bash
+
+	find /opt/transfer -type f -ctime +0 -exec rm -rf {} \;
+
+	find /opt/transfer -type d -empty -exec rm -rf {} \;
+
+	find /home -name "Trash" -exec rm -rf {} \;

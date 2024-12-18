@@ -1,0 +1,4 @@
+
+    - name: debug realm_bound
+      debug:
+        var: realm_bound.rc

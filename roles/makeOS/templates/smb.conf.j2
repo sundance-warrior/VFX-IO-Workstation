@@ -1,0 +1,31 @@
+# See smb.conf.example for a more detailed config file or
+# read the smb.conf manpage.
+# Run 'testparm' to verify the config is correct after
+# you modified it.
+#
+# Note:
+# SMB1 is disabled by default. This means clients without support for SMB2 or
+# SMB3 are no longer able to connect to smbd (by default).
+
+[global]
+    realm = MVISION.LAN
+    workgroup = MVISION
+    security = ads
+    kerberos method = secrets and keytab
+    idmap config * : backend = tdb
+    idmap config * : range = 10000-199999
+    idmap config MVISION : backend = sss
+    idmap config MVISION : range = 200000-2147483647
+    hosts allow = 10.119.77.0/255.255.255.0, 10.119.76.0/255.255.255.0
+    log file = /var/log/samba/log.%m
+    max log size = 50
+    machine password timeout = 0 
+
+
+[transfer]
+    comment = Transfer Share
+    path = /opt/transfer
+    read only = No
+    create mask = 0770
+    directory mask = 0770
+    valid users = +mv_u_{{inventory_hostname}}_users

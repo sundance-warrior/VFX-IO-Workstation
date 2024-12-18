@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+X-firefox-Version=1.0
+Type=Application
+Exec=/bin/firefox
+Icon=/usr/share/icons/hicolor/256x256/apps/firefox.png
+Name=Firefox
+Comment=Firefox Browser
+GenericName=MozillaFirefox
+Terminal=false
+
+X-Desktop-File-Install-Version=0.26

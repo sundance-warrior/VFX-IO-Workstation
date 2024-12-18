@@ -1,0 +1,22 @@
+#####################################################################################
+#
+# SessionIdleLimit=<minutes>
+#
+# Is the Limit how long a GUI Session can be Idle before
+# it come into account if a Session will be terminated.
+#
+# A Session will only be terminated if 
+#
+#  ( AND CONDITION )
+#
+#  1. the SessionIdleLimit is reached and ..
+#  2. no  file(s) at /opt/transfer/ is in use by the Linux User and ..
+#  3. no other Process of the User is running 
+#
+#
+# 						Author:  Volker Krieger ( Acccenture )
+#
+#####################################################################################
+
+
+SessionIdleLimit=30

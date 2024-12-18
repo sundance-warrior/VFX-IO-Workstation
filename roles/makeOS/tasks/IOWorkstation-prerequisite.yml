@@ -1,0 +1,153 @@
+#- name: Testing Prerequisites For VFX IO Workstation 
+#  hosts: mvdehmduih2001
+#  gather_facts: false
+#
+#  tasks:
+
+
+#      - name: Status Of Pulse Audio Service
+#        command: systemctl --global is-enabled pulseaudio.service
+#        register: PulseaudioService
+#        failed_when: PulseaudioService.stdout|length == 0
+#        changed_when: false
+
+#nicetohave      - name: Status Of Pulse Audio Socket
+#nicetohave        command: systemctl --global is-enabled pulseaudio.socket
+#nicetohave        register: PulseaudioSocket
+#nicetohave        failed_when: PulseaudioSocket.stdout|length == 0
+#nicetohave        changed_when: false
+
+#      - name: Status Of RTKIT Daemon
+#        command: systemctl is-enabled rtkit-daemon.service
+#        register: RTkit
+#        failed_when: RTkit.stdout|length == 0
+#        changed_when: false
+#
+#      - name: Status Of GNOME Autostart 
+#        command: grep X-GNOME-Autostart-enabled=false /etc/xdg/autostart/pulseaudio.desktop
+#        register: GnomeAutostart
+#        failed_when: GnomeAutostart.rc > 2
+#        changed_when: false
+#
+#      - name: Status Of GNOME Autospawn
+#        command: grep "^autospawn = no" /etc/pulse/client.conf
+#        register: GnomeAutospawn
+#        failed_when: GnomeAutospawn.rc > 2
+#        changed_when: false
+
+#      - name: Check GNOME Tracker Store
+##        command: grep -o "^Hidden=true" /etc/xdg/autostart/tracker-extract.desktop
+#        command: grep -o "X-Gnome-Autostart-enabled=true" /etc/xdg/autostart/tracker-extract.desktop
+#        register: TrackerStore
+#        failed_when: TrackerStore.rc > 2
+#        changed_when: false
+
+      - name: check if system is bound to domain
+        shell: > 
+          realm list
+          | grep domain-name
+        register: realm_bound
+        failed_when: realm_bound.rc > 3
+        changed_when: false
+
+
+      - name: Check SDA Disk Size
+        shell: >
+          lsblk -b |
+          grep ^sda |
+          awk '{ print $4 }'
+        register: sdaSize
+        failed_when: sdaSize.stdout|int < 85899000000
+        changed_when: false
+
+      - name: Check "/opt/transfer" Size
+        shell: >
+          df  /opt/transfer --output=size
+          | grep -v blocks
+        register: TransferSize
+#        failed_when: TransferSize.rc == 1 or TransferSize.stdout|int < 890000000
+        failed_when: TransferSize.rc == 1 or TransferSize.stdout|int < 8800000
+        changed_when: false
+
+
+#quatsch      - name: Check "/usr" Size
+#quatsch        shell: >
+#quatsch          df  /usr --output=size
+#quatsch          | grep -v blocks
+#quatsch        register: UsrSize
+#quatsch        failed_when: UsrSize.rc == 1 or UsrSize.stdout|int < 10480000
+#quatsch        changed_when: false
+#quatsch
+#quatsch      - name: Check "/home" Size
+#quatsch        shell: >
+#quatsch          df  /home --output=size
+#quatsch          | grep -v blocks
+#quatsch        register: HomeSize
+#quatsch        failed_when: HomeSize.rc == 1 or HomeSize.stdout|int < 31303000
+#quatsch        changed_when: false
+
+      - name: Check "/opt/Applications" Size
+        shell: >
+          df  /opt/Applications --output=size
+          | grep -v blocks
+        register: AppSize
+#        failed_when: AppSize.rc == 1 or AppSize.stdout|int < 13300000
+        failed_when: AppSize.rc == 1 or AppSize.stdout|int < 11000000
+        changed_when: false
+#
+#
+#
+#
+#
+#      - name: PulseaudioService Is enabled ?
+#        debug:
+##          var: PulseaudioService
+#          var: PulseaudioService.stdout
+#
+#      - name: PulseaudioSocket Is enabled ?
+#        debug:
+##          var: PulseaudioSocket.rc
+#          var: PulseaudioSocket.stdout
+#
+#      - name: RTkit Is Enabled ?
+#        debug:
+##          var: PulseaudioSocket.rc
+#          var: RTkit.stdout
+#
+#      - name: RC Code GNOME Autostart
+#        debug:
+#          var: GnomeAutostart.rc
+#
+#      - name: RC Code GNOME AutoSpawn
+#        debug:
+#          var: GnomeAutospawn.rc
+#
+#      - name: GNOME Tracker Store
+#        debug:
+#          var: TrackerStore
+#
+#      - name: Transfer Partition
+#        debug:
+#          var: TransferSize
+#
+#      - name: Usr Partition
+#        debug:
+#          var: UsrSize
+#
+#      - name: Home Partition
+#        debug:
+#          var: HomeSize
+#
+#      - name: Application Partition
+#        debug:
+#          var: AppSize
+#
+#      - name: Conditional PulsAudoService
+#        debug:
+#          msg: "Pulse is masked"
+#        when: PulseaudioService.stdout == "masked"
+
+
+
+
+

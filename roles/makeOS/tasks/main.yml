@@ -1,0 +1,366 @@
+
+    - name: Prerequisite Testing
+      import_tasks: IOWorkstation-prerequisite.yml
+
+    - name: Fail on unsupported OS
+      fail:
+        msg: "unsupported OS -> fail"
+      when: ansible_os_family != 'RedHat'
+
+    - name: Leave The Domain
+      shell: echo '{{ password }}' | realm leave -U s_ad-linux-domainjoin
+      no_log: true
+      when: realm_bound.rc == 0
+
+    - name: Join The Domain With Samba Config
+      shell: echo '{{ password }}' | realm join -U s_ad-linux-domainjoin --client-software=sssd --membership-software=samba --computer-ou="OU=Linux,OU=Mackevision,DC=mvision,DC=lan" MVDEHMDWDC1001.mvision.lan
+      no_log: true
+
+    - name: Stop SSSD Daemon
+      ansible.builtin.service:
+        name: sssd.service
+        state: stopped
+    
+    - name: Copy SSSD Config
+      ansible.builtin.template:
+        src: sssd.conf.j2
+        dest: /etc/sssd/sssd.conf
+        force: true
+        group: root
+        owner: root
+        mode: 0600
+        setype: sssd_conf_t
+
+    - name: Clean Up SSSD Database
+      shell: rm -f /var/lib/sss/db/* 
+
+    - name: Start SSSD 
+      ansible.builtin.service:
+        name: sssd.service
+        state: started
+
+    - name: Create Backup Of New SSSD As SSSD.CONF.SMB.BAK
+      ansible.builtin.copy:
+        src: /etc/sssd/sssd.conf
+        dest: /etc/sssd/sssd.conf.smb.bak
+        remote_src: yes
+        group: root
+        owner: root
+        mode: 0600
+        setype: sssd_conf_t
+     
+    - name: Resize "/usr" Partition
+      community.general.lvol:
+        vg: rhel
+        lv: usr
+        size: 10g
+        resizefs: true
+
+    - name: Resize "/home" Partition
+      community.general.lvol:
+        vg: rhel
+        lv: home
+        size: 30g
+        resizefs: true
+
+    - name: Notification
+      debug:
+        msg: "Installing GUI Packages .. this will take a while"
+
+    - name: Install Needed Software Packages
+      shell: dnf group install GNOME base-x Fonts -y
+
+    - name: Make GUI The Default Target
+      command: systemctl set-default graphical
+
+    - name: Status Of Pulse Audio Service
+      command: systemctl --global is-enabled pulseaudio.service
+      register: PulseaudioService
+      failed_when: PulseaudioService.stdout|length == 0
+      changed_when: false
+
+    - name: Disable PulseAudio Service
+      shell: |
+        systemctl --global disable pulseaudio.service pulseaudio.socket
+        systemctl --global mask pulseaudio.service pulseaudio.socket
+        echo "X-GNOME-Autostart-enabled=false" >> /etc/xdg/autostart/pulseaudio.desktop 
+        echo "autospawn = no" >> /etc/pulse/client.conf
+      when: PulseaudioService.stdout == "enabled"
+
+    - name: Install Samba And Browser
+      ansible.builtin.dnf:
+        name:
+          - samba
+          - samba-winbind
+          - sssd-winbind-idmap
+          - firefox
+          - gnome-tweaks
+        state: present
+ 
+    - name: Remove "gnome-initial-setup"
+      ansible.builtin.dnf:
+        name: 
+          - gnome-initial-setup
+        state: absent
+
+    - name: Rename "gnome-keyring"
+      ansible.builtin.command: mv /usr/bin/gnome-keyring-daemon /usr/bin/gnome-keyring-daemon.bak
+
+
+# GNOME Tracker Store Disabeling
+
+    - name: GNOME Tracker Store
+      block:
+
+        - name: Disable GNOME Tracker Files
+          ansible.builtin.lineinfile:
+            path: "{{ item }}"
+            state: present
+            insertafter: EOF
+            create: true
+            line: "Hidden=true"
+          loop:
+            - /etc/xdg/autostart/tracker-extract.desktop
+            - /etc/xdg/autostart/tracker-miner-apps.desktop
+            - /etc/xdg/autostart/tracker-miner-fs.desktop
+            - /etc/xdg/autostart/tracker-miner-user-guides.desktop
+            - /etc/xdg/autostart/tracker-store.desktop
+
+        - name: Disabeling GNOME Tracker Store
+          shell: |
+            dbus-launch --exit-with-session gsettings set org.freedesktop.Tracker.Miner.Files crawling-interval -2
+            dbus-launch --exit-with-session gsettings set org.freedesktop.Tracker.Miner.Files enable-monitors false
+            yes |  tracker reset --hard
+            sed -i 's/X-GNOME-Autostart-enabled=.*/X-GNOME-Autostart-enabled=false/' /etc/xdg/autostart/tracker-store.desktop
+
+    - name: Copy Login Banner
+      ansible.builtin.template:
+        src: 01-banner-message
+        dest: /etc/dconf/db/gdm.d
+        force: true
+        group: root
+        owner: root
+        mode: 0644
+        setype: etc_t
+
+    - name: Update GDM
+      command: dconf update
+
+    - name: Stop Service packagekit
+      ansible.builtin.systemd_service:
+        name: packagekit
+        state: stopped
+
+    - name: Prevent Normal User To Update OS In GUI 
+      ansible.builtin.systemd_service:
+        name: packagekit
+        enabled: false
+        masked: yes
+
+    - name: Stop Service rtkit
+      ansible.builtin.systemd_service:
+        name: rtkit-daemon.service
+        state: stopped
+
+    - name: Disable rtkit Daemon
+      ansible.builtin.systemd_service:
+        name: rtkit-daemon.service
+        enabled: false
+        masked: yes
+
+    - name: Prevent Normal User To Shutdown/Reboot The System In GUI
+      ansible.builtin.template:
+        src: 55-inhibit-shutdown.rules
+        dest: /etc/polkit-1/rules.d
+        force: true
+        group: root
+        owner: root
+        mode: 0644
+        setype: etc_t
+
+    - name: Stop Daemons
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - winbind
+        - smb
+        - nmb
+
+    - name: Copy smb.conf File
+      ansible.builtin.template:
+        src: smb.conf.j2
+        dest: /etc/samba/smb.conf
+        group: root
+        owner: root
+        mode: 0644
+        setype: samba_etc_t
+
+    - name: Create Backup Of smb.conf File
+      ansible.builtin.copy:
+        src: /etc/samba/smb.conf
+        dest: /etc/samba/smb.conf.bak
+        remote_src: yes
+        group: root
+        owner: root
+        mode: 0644
+        setype: samba_etc_t
+
+    - name: Start Daemons
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - winbind
+        - smb
+        - nmb
+
+    - name: Prepare "/opt/transfer" As A Samba Share
+      shell: |
+        semanage fcontext -a -t samba_share_t "/opt/transfer(/.*)?"
+        restorecon -R -v /opt/transfer
+        chgrp -R mv_u_$(hostname -a)_users /opt/transfer
+        chmod -R g+rws,o-rx /opt/transfer
+
+    - name: Update Secuirty Policy
+      shell: update-crypto-policies --set DEFAULT:AD-SUPPORT
+
+    - name: Enable winbind And smb Service
+      ansible.builtin.service:
+        name: "{{ item }}"
+        enabled: yes
+      loop:
+        - smb
+        - winbind
+        - nmb
+
+    - name: Intialize Login Profile Scripts
+      ansible.builtin.template:
+        src: loginhook.sh
+        dest: /etc/profile.d/loginhook.sh
+        group: root
+        owner: root
+        mode: 0644
+        setype: _default
+
+    - name: Copy .bashrc Skeleton File
+      ansible.builtin.template:
+        src: bashrc.j2
+        dest: /etc/skel/.bashrc
+        group: root
+        owner: root
+        mode: 0644
+        setype: _default
+
+    - name: Create Desktop Directory At /etc/skel
+      ansible.builtin.file:
+        path: /etc/skel/Desktop
+        state: directory
+        owner: root
+        group: root
+        mode: 0744
+        setype: _default
+
+    - name: Copy Desktop Icon For Firefox
+      ansible.builtin.copy:
+        src: firefox.desktop
+        dest: /etc/skel/Desktop
+        group: root
+        owner: root
+        mode: 0755
+        setype: _default
+
+    - name: Create Scripts Directoy If Not Exists
+      ansible.builtin.file:
+        path: /usr/local/bin/scripts
+        state: directory
+        owner: root
+        group: root
+        mode: 0644
+        setype: _default
+
+    - name: Copy Cleaning Script
+      ansible.builtin.template:
+        src: cleanup_transfer_and_trash_folder
+        dest: /usr/local/bin/scripts/cleanup_transfer_and_trash_folder
+        group: root
+        owner: root
+        mode: 0700
+        setype: bin_t
+
+    - name: Initialize Cleaning Script
+      ansible.builtin.cron:
+        name: Cleanup Transfer And Trash Folder
+        minute: "15"
+        hour: "0"
+        job: /usr/local/bin/scripts/cleanup_transfer_and_trash_folder >/dev/null 2>&1
+        disabled: true
+        state: present
+
+    - name: Copy IdleLogin Script
+      ansible.builtin.template:
+        src: IdleLogin.j2
+        dest: /usr/local/bin/scripts/IdleLogin
+        owner: root
+        group: root
+        mode: 0700
+        setype: _default
+
+    - name: Copy IdleLogin Parameter Configuration File
+      ansible.builtin.template:
+        src: SessionIdleLimit.j2
+        dest: /etc/sysconfig/SessionIdleLimit
+        owner: root
+        group: root
+        mode: 0644
+        setype: _default
+
+    - name: Initialize Idle Login Schedular
+      ansible.builtin.cron:
+        name: IdleLogin
+        minute: "*/15"
+        user: root
+        job: /usr/local/bin/scripts/IdleLogin >/dev/null 2>&1
+        disabled: false
+        state: present
+
+    - name: Disable mdmonitor Service
+      command: systemctl disable mdmonitor.service --now
+
+    - name: Set Correct Time Zone
+      shell: |
+        timedatectl set-timezone Europe/Berlin 
+        localectl set-keymap de
+        localectl set-x11-keymap de
+
+    - name: Prepare For SELinux Context
+      ansible.builtin.file:
+        path: /.autorelabel
+        state: touch
+
+    - name: Select Auth Profile
+      command: authselect select sssd_compliance with-faillock with-mkhomedir -f
+ 
+######################################################################
+#
+#   Maybe not needed later
+#
+    - name: Create Installation Directoy
+      ansible.builtin.file:
+        path: /opt/Applications/installers
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+        setype: _default
+
+
+######################################################################
+
+    - name: Notification
+      debug:
+        msg: "The System Is Now Restarted"
+
+    - name: Reboot The System
+      reboot:
+ 
